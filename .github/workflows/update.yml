@@ -1,9 +1,9 @@
 name: 更新財務資料
 
+# 每日自動更新改由本機電腦執行（scripts/update-local.cmd + Windows 工作排程器），
+# 因為公開資訊觀測站對 GitHub 的國外主機回應很慢或會擋掉。
+# 這裡只保留手動執行，需要時可到 Actions 頁面按 Run workflow。
 on:
-  schedule:
-    # 每天台灣時間 09:30（UTC 01:30）；月營收 10 日前、季報 3/31、5/15、8/14、11/14 前後會有新資料
-    - cron: "30 1 * * *"
   workflow_dispatch:
 
 permissions:
