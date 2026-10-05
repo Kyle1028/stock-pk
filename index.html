@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="上市櫃個股依產業篩選，比較月營收月增、年增與季報毛利率、EPS">
+</head>
+<body>
+<title>個股財務PK</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: control bar on top; screening table (left, scrolls) + sticky PK board (right); detail opens as a drawer. */
+:root {
+  --bg: #f4f3ee;          /* warm paper, biased toward the gold band */
+  --surface: #ffffff;
+  --surface-2: #faf9f5;
+  --ink: #1c1e24;
+  --ink-2: #5a5e68;
+  --ink-3: #8a8d95;
+  --line: #e2e0d8;
+  --line-2: #cfccc2;
+  --accent: #2c4a7a;      /* interactive: links, active segment, selected row */
+  --accent-soft: #e4ebf6;
+  --gold: #f2d27a;        /* group band, from the original sheet */
+  --gold-ink: #3d3005;
+  --up: #c4362b;          /* 台股慣例：紅漲 */
+  --down: #1e8449;        /* 綠跌 */
+  --up-soft: #fbe9e7;
+  --down-soft: #e5f4ea;
+  --series-1: #2a78d6;
+  --series-2: #b9b6ac;
+  --grid: #e1e0d9;
+  --shadow: 0 10px 30px rgba(28,30,36,.14);
+  --font-ui: "IBM Plex Sans", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-tc: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15161a; --surface: #1e2026; --surface-2: #23262d; --ink: #ecebe6; --ink-2: #b4b3ab; --ink-3: #7d7f88;
+    --line: #2e3139; --line-2: #3c404a; --accent: #8fb0e6; --accent-soft: #263349; --gold: #a7822a; --gold-ink: #fff7df;
+    --up: #ef6b5e; --down: #4fbf7c; --up-soft: #3a2220; --down-soft: #1b3326; --series-1: #3987e5; --series-2: #5a5d66; --grid: #2c2c2a;
+    --shadow: 0 10px 30px rgba(0,0,0,.5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15161a; --surface: #1e2026; --surface-2: #23262d; --ink: #ecebe6; --ink-2: #b4b3ab; --ink-3: #7d7f88;
+  --line: #2e3139; --line-2: #3c404a; --accent: #8fb0e6; --accent-soft: #263349; --gold: #a7822a; --gold-ink: #fff7df;
+  --up: #ef6b5e; --down: #4fbf7c; --up-soft: #3a2220; --down-soft: #1b3326; --series-1: #3987e5; --series-2: #5a5d66; --grid: #2c2c2a;
+  --shadow: 0 10px 30px rgba(0,0,0,.5); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1480px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 48px; }
+h1, h2, h3 { font-family: var(--font-tc); margin: 0; text-wrap: balance; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.up { color: var(--up); } .down { color: var(--down); } .na { color: var(--ink-3); }
+
+/* header */
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 14px; }
+.head h1 { font-size: 24px; font-weight: 700; letter-spacing: .02em; }
+.head .sub { color: var(--ink-2); margin-top: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line-2); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--ink-2); background: var(--surface); white-space: nowrap; }
+.chip b { color: var(--ink); font-weight: 600; }
+
+/* controls */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+.ctl { display: flex; align-items: center; gap: 6px; }
+.ctl label, .ctl .lbl { font-size: 12px; color: var(--ink-2); letter-spacing: .04em; white-space: nowrap; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.seg button { background: var(--surface); border: 0; padding: 6px 12px; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+select, input[type="search"], input[type="number"] { background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px; min-height: 34px; }
+input[type="number"] { width: 72px; text-align: right; }
+input[type="search"] { width: 170px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 10px; background: var(--surface-2); user-select: none; }
+.toggle input { margin: 0; accent-color: var(--accent); }
+.toggle[data-on="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.spacer { flex: 1; }
+.count { color: var(--ink-2); white-space: nowrap; }
+.count b { color: var(--ink); font-weight: 600; font-size: 16px; }
+
+/* two columns */
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 560px); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .cols { grid-template-columns: minmax(0, 1fr); } .pk { position: static !important; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.panel-h h2 { font-size: 15px; font-weight: 700; }
+.panel-h .hint { color: var(--ink-2); font-size: 12px; }
+.tbl-wrap { overflow-x: auto; max-height: calc(100vh - 230px); overflow-y: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+thead th { position: sticky; top: 0; background: var(--surface-2); color: var(--ink-2); font-weight: 500; font-size: 12px; text-align: right; z-index: 1; cursor: pointer; user-select: none; }
+thead th.l { text-align: left; }
+thead th[aria-sort] { color: var(--accent); }
+thead th[aria-sort="ascending"]::after { content: " ▲"; font-size: 9px; }
+thead th[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr.sel { background: var(--accent-soft); }
+td.l { text-align: left; }
+.code { color: var(--ink-2); font-size: 12px; }
+.name { font-family: var(--font-tc); font-weight: 500; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline dotted; text-underline-offset: 3px; }
+.add { border: 1px solid var(--line-2); background: var(--surface); border-radius: 6px; padding: 2px 8px; font-size: 12px; color: var(--ink-2); }
+.add[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.empty { padding: 28px 16px; color: var(--ink-2); text-align: center; }
+
+/* PK board */
+.pk { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+.pk .tbl-wrap { max-height: none; }
+.pk table { font-size: 12.5px; }
+.pk th, .pk td { padding: 5px 7px; }
+.pk thead th { position: static; cursor: default; text-align: right; }
+.pk thead th.l { text-align: left; }
+.pk thead th .pkname { display: block; font-family: var(--font-tc); font-weight: 700; color: var(--ink); font-size: 13px; }
+.pk thead th .pkcode { color: var(--ink-2); font-size: 11px; }
+.pk thead th .rm { border: 0; background: none; color: var(--ink-3); padding: 0 2px; font-size: 13px; line-height: 1; }
+.pk thead th .rm:hover { color: var(--up); }
+.pk td.lbl { text-align: left; color: var(--ink-2); font-family: var(--font-tc); }
+.pk tr.band td { background: var(--gold); color: var(--gold-ink); font-family: var(--font-tc); font-weight: 700; font-size: 12px; letter-spacing: .1em; padding: 4px 10px; }
+.pk td.best { font-weight: 600; }
+.pk td.best::after { content: " ●"; color: var(--gold); font-size: 8px; vertical-align: middle; }
+.pk .foot { padding: 8px 14px; color: var(--ink-3); font-size: 12px; border-top: 1px solid var(--line); }
+.pk .clear { border: 0; background: none; color: var(--accent); font-size: 12px; padding: 0; }
+
+/* detail drawer */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 100%); background: var(--surface); z-index: 21; box-shadow: var(--shadow); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+.drawer-h { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.drawer-h h2 { font-size: 18px; flex: 1; min-width: 0; }
+.drawer-h .meta { color: var(--ink-2); font-size: 12px; }
+.drawer-h .x { border: 1px solid var(--line-2); background: var(--surface); border-radius: 8px; width: 34px; height: 34px; font-size: 18px; line-height: 1; }
+.drawer-b { overflow: auto; padding: 14px 18px 32px; display: grid; gap: 22px; }
+.sec h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: baseline; gap: 10px; }
+.sec h3 small { color: var(--ink-2); font-weight: 400; font-size: 12px; }
+.sec table { font-size: 13px; }
+.sec thead th { position: static; cursor: default; }
+.chart { width: 100%; height: auto; display: block; margin-bottom: 8px; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 6px; z-index: 30; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); }
+.note { color: var(--ink-3); font-size: 12px; margin-top: 18px; line-height: 1.6; }
+@media (prefers-reduced-motion: no-preference) { .drawer { animation: slide .18s ease-out; } @keyframes slide { from { transform: translateX(24px); opacity: 0; } } }
+@media (max-width: 640px) { .head h1 { font-size: 20px; } th, td { padding: 6px 7px; } input[type="search"] { width: 130px; } }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>個股財務PK</h1>
+      <div class="sub">依產業篩選上市櫃個股，比較月營收月增、年增與季報獲利能力</div>
+    </div>
+    <div class="chips" id="chips"><span class="chip">載入資料中…</span></div>
+  </header>
+
+  <section class="controls" aria-label="篩選條件">
+    <div class="ctl"><span class="lbl">市場別</span>
+      <div class="seg" id="market" role="group" aria-label="市場別">
+        <button type="button" data-v="上市" aria-pressed="true">上市</button>
+        <button type="button" data-v="上櫃" aria-pressed="false">上櫃</button>
+        <button type="button" data-v="全部" aria-pressed="false">全部</button>
+      </div>
+    </div>
+    <div class="ctl"><label for="industry">產業別</label><select id="industry"></select></div>
+    <div class="ctl"><label for="q">搜尋</label><input type="search" id="q" placeholder="代號或名稱"></div>
+    <label class="toggle" data-on="true"><input type="checkbox" id="fGm" checked> 毛利率 ≥ <input type="number" id="gmMin" value="15" min="-100" max="100" step="1" aria-label="毛利率門檻"> %</label>
+    <label class="toggle" data-on="false"><input type="checkbox" id="fMom"> 月增率 &gt; 0</label>
+    <label class="toggle" data-on="false"><input type="checkbox" id="fYoy"> 年增率 &gt; 0</label>
+    <div class="spacer"></div>
+    <div class="count" id="count"></div>
+  </section>
+
+  <div class="cols">
+    <section class="panel" aria-label="篩選結果">
+      <div class="panel-h"><h2 id="listTitle">篩選結果</h2><span class="hint">點欄位標題排序；點「PK」加入右側比較（最多 6 檔）；點名稱看月營收與近八季 EPS</span></div>
+      <div class="tbl-wrap" id="listWrap"><div class="empty">載入資料中…</div></div>
+    </section>
+
+    <aside class="panel pk" aria-label="個股財務PK">
+      <div class="panel-h"><h2 id="pkTitle">個股財務PK</h2><span class="hint" id="pkHint"></span></div>
+      <div class="tbl-wrap" id="pkWrap"></div>
+      <div class="foot" id="pkFoot"></div>
+    </aside>
+  </div>
+
+  <p class="note" id="note"></p>
+</div>
+
+<div id="drawerRoot"></div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const LS = { get(k, d) { try { const v = localStorage.getItem('pk:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('pk:' + k, JSON.stringify(v)); } catch {} } };
+  const fmtN = (v, d = 0) => v == null || !isFinite(v) ? '—' : v.toLocaleString('zh-TW', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const fmtP = v => v == null || !isFinite(v) ? '—' : (v * 100).toFixed(2) + '%';
+  const cls = v => v == null || !isFinite(v) ? 'na' : v > 0 ? 'up' : v < 0 ? 'down' : '';
+  const pct = (a, b) => (a == null || b == null || b === 0) ? null : (a - b) / Math.abs(b);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  let D = null;            // snapshot
+  let rows = [];           // computed metrics per stock
+  let state = { market: LS.get('market', '上市'), industry: LS.get('industry', '電腦及週邊設備業'), q: '', fGm: LS.get('fGm', true), gmMin: LS.get('gmMin', 15), fMom: false, fYoy: false, sort: LS.get('sort', { k: 'rev', dir: 'desc' }) };
+  let pk = LS.get('pk', ['2362', '2353', '2376', '2377', '2382', '2324']);
+
+  // ---- metrics ----
+  function singleQ(s, i) {           // de-cumulate quarter i of s.q → [rev,gp,op,nonop,ni,nip,eps] or null
+    const cur = s.q[i]; if (!cur) return null;
+    const season = +D.quarters[i].slice(-1);
+    if (season === 1) return cur.slice();
+    const prev = s.q[i - 1]; if (!prev) return null;
+    return cur.map((v, k) => (v == null || prev[k] == null) ? null : v - prev[k]);
+  }
+  function compute() {
+    const L = D.months.length - 1, Q = D.quarters.length - 1;
+    const curYear = D.months[L].slice(0, 3);
+    rows = Object.entries(D.stocks).map(([code, s]) => {
+      const rev = s.rev[L], prev = s.rev[L - 1], ly = s.ly[L];
+      let cum = 0, cumLy = 0, has = false;
+      D.months.forEach((m, i) => { if (m.slice(0, 3) === curYear && s.rev[i] != null && s.ly[i] != null) { cum += s.rev[i]; cumLy += s.ly[i]; has = true; } });
+      const q = singleQ(s, Q), qly = singleQ(s, Q - 4);
+      const r = q && q[0] ? q[0] : null;
+      const safe = (n) => (q && r && q[n] != null) ? q[n] / r : null;
+      const eps = q ? q[6] : null, epsLy = qly ? qly[6] : null;
+      return { code, name: s.n, market: s.m, ind: s.i, rev, mom: pct(rev, prev), yoy: pct(rev, ly), cumYoy: has ? pct(cum, cumLy) : null,
+        gm: safe(1), om: safe(2), nm: (q && r && (q[5] ?? q[4]) != null) ? (q[5] ?? q[4]) / r : null, nonop: safe(3), eps, epsYoy: pct(eps, epsLy), s };
+    });
+  }
+
+  // ---- filtering / list ----
+  function filtered() {
+    const q = state.q.trim().toLowerCase();
+    return rows.filter(r => (state.market === '全部' || r.market === state.market)
+      && (q ? (r.code.includes(q) || r.name.toLowerCase().includes(q)) : (state.industry === '全部產業' || r.ind === state.industry))
+      && (!state.fGm || (r.gm != null && r.gm >= state.gmMin / 100))
+      && (!state.fMom || (r.mom != null && r.mom > 0))
+      && (!state.fYoy || (r.yoy != null && r.yoy > 0)));
+  }
+  const COLS = [
+    { k: 'code', t: '代號', l: true }, { k: 'name', t: '名稱', l: true }, { k: 'rev', t: '月營收(百萬)', f: v => fmtN(v / 1000) },
+    { k: 'mom', t: '月增率', f: fmtP, c: true }, { k: 'yoy', t: '年增率', f: fmtP, c: true }, { k: 'cumYoy', t: '累計年增', f: fmtP, c: true },
+    { k: 'gm', t: '毛利率', f: fmtP }, { k: 'om', t: '營益率', f: fmtP, c: true }, { k: 'nm', t: '淨利率', f: fmtP, c: true },
+    { k: 'eps', t: 'EPS(元)', f: v => fmtN(v, 2), c: true }, { k: 'epsYoy', t: 'EPS年增', f: fmtP, c: true }, { k: 'pk', t: 'PK' }
+  ];
+  function sortRows(list) {
+    const { k, dir } = state.sort, m = dir === 'asc' ? 1 : -1;
+    return list.sort((a, b) => {
+      const x = a[k], y = b[k];
+      if (k === 'code' || k === 'name') return m * String(x).localeCompare(String(y), 'zh-Hant');
+      if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+      return m * (x - y);
+    });
+  }
+  function renderList() {
+    const list = sortRows(filtered());
+    const total = rows.filter(r => (state.market === '全部' || r.market === state.market) && (state.industry === '全部產業' || r.ind === state.industry)).length;
+    $('#count').innerHTML = `符合 <b>${list.length}</b> / ${total} 檔`;
+    $('#listTitle').textContent = state.q.trim() ? `搜尋「${state.q.trim()}」` : `${state.industry}（${state.market}）`;
+    if (!list.length) { $('#listWrap').innerHTML = '<div class="empty">沒有符合條件的個股。放寬毛利率門檻或取消月增、年增條件試試。</div>'; return; }
+    const th = COLS.map(c => `<th class="${c.l ? 'l' : ''}" data-k="${c.k}" ${state.sort.k === c.k ? `aria-sort="${state.sort.dir === 'asc' ? 'ascending' : 'descending'}"` : ''}>${c.t}</th>`).join('');
+    const tr = list.map(r => `<tr data-code="${r.code}" class="${pk.includes(r.code) ? 'sel' : ''}">` + COLS.map(c => {
+      if (c.k === 'code') return `<td class="l code">${r.code}</td>`;
+      if (c.k === 'name') return `<td class="l"><button type="button" class="name" data-detail="${r.code}">${esc(r.name)}</button></td>`;
+      if (c.k === 'pk') return `<td class="num"><button type="button" class="add" data-pk="${r.code}" aria-pressed="${pk.includes(r.code)}">${pk.includes(r.code) ? '已加入' : 'PK'}</button></td>`;
+      const v = r[c.k]; return `<td class="num ${c.c ? cls(v) : (v == null ? 'na' : '')}">${c.f(v)}</td>`;
+    }).join('') + '</tr>').join('');
+    $('#listWrap').innerHTML = `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+  }
+
+  // ---- PK board ----
+  const PKROWS = [
+    { band: `月資料` },
+    { t: '月營收(百萬元)', k: 'rev', f: v => fmtN(v / 1000), best: 'max' },
+    { t: '月營收月增率', k: 'mom', f: fmtP, c: true, best: 'max' },
+    { t: '月營收年增率', k: 'yoy', f: fmtP, c: true, best: 'max' },
+    { t: '累計營收年增率', k: 'cumYoy', f: fmtP, c: true, best: 'max' },
+    { band: `季資料` },
+    { t: '營業毛利率', k: 'gm', f: fmtP, best: 'max' },
+    { t: '營業利益率', k: 'om', f: fmtP, c: true, best: 'max' },
+    { t: '稅後淨利率', k: 'nm', f: fmtP, c: true, best: 'max' },
+    { t: '業外收支/營收', k: 'nonop', f: fmtP, c: true },
+    { t: '每股盈餘(元)', k: 'eps', f: v => fmtN(v, 2), c: true, best: 'max' },
+    { t: '每股盈餘年增率', k: 'epsYoy', f: fmtP, c: true, best: 'max' },
+  ];
+  function renderPK() {
+    const sel = pk.map(c => rows.find(r => r.code === c)).filter(Boolean);
+    const L = D.months.length - 1, Q = D.quarters.length - 1;
+    $('#pkHint').textContent = sel.length ? `${sel.length} / 6 檔` : '';
+    $('#pkFoot').innerHTML = sel.length ? `月資料為 ${D.months[L]}，季資料為 ${D.quarters[Q]} 單季。● 為該列最佳。 <button type="button" class="clear" id="pkClear">清空</button>` : '';
+    if (!sel.length) { $('#pkWrap').innerHTML = '<div class="empty">尚未選擇個股。在左側表格按「PK」加入，最多比較 6 檔。</div>'; return; }
+    const th = `<th class="l">財務比率 / 個股</th>` + sel.map(r => `<th><span class="pkname"><button type="button" class="name" data-detail="${r.code}">${esc(r.name)}</button> <button type="button" class="rm" data-rm="${r.code}" aria-label="移除 ${esc(r.name)}">×</button></span><span class="pkcode">${r.code}</span></th>`).join('');
+    const body = PKROWS.map(row => {
+      if (row.band) return `<tr class="band"><td colspan="${sel.length + 1}">${row.band}</td></tr>`;
+      const vals = sel.map(r => r[row.k]);
+      let bestIdx = -1;
+      if (row.best && sel.length > 1) { const nums = vals.map((v, i) => [v, i]).filter(([v]) => v != null && isFinite(v)); if (nums.length > 1) bestIdx = nums.reduce((a, b) => b[0] > a[0] ? b : a)[1]; }
+      return `<tr><td class="lbl">${row.t}</td>` + vals.map((v, i) => `<td class="num ${row.c ? cls(v) : (v == null ? 'na' : '')} ${i === bestIdx ? 'best' : ''}">${row.f(v)}</td>`).join('') + '</tr>';
+    }).join('');
+    $('#pkWrap').innerHTML = `<table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+  function togglePK(code) {
+    if (pk.includes(code)) pk = pk.filter(c => c !== code);
+    else { if (pk.length >= 6) { pk = pk.slice(1); } pk.push(code); }
+    LS.set('pk', pk); renderPK(); renderList();
+  }
+
+  // ---- detail drawer ----
+  function barChart(cats, a, b, labelA, labelB, fmt) {
+    // grouped bars: a = current, b = year-ago; one shared scale
+    const W = 720, H = 220, padL = 56, padR = 12, padT = 14, padB = 34;
+    const all = [...a, ...b].filter(v => v != null);
+    let max = Math.max(0, ...all), min = Math.min(0, ...all);
+    if (max === min) max = min + 1;
+    const span = max - min, y = v => padT + (max - v) / span * (H - padT - padB);
+    const n = cats.length, gw = (W - padL - padR) / n, bw = Math.min(22, (gw - 8) / 2);
+    const ticks = 4, step = span / ticks;
+    let g = '';
+    for (let i = 0; i <= ticks; i++) { const v = min + step * i, yy = y(v); g += `<line x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}" stroke="var(--grid)" stroke-width="1"/><text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="var(--ink-3)">${fmt(v)}</text>`; }
+    let bars = '';
+    cats.forEach((c, i) => {
+      const x0 = padL + gw * i + (gw - bw * 2 - 2) / 2;
+      const draw = (v, x, fill, lab) => { if (v == null) return ''; const y1 = y(Math.max(0, v)), y2 = y(Math.min(0, v)); const h = Math.max(1, y2 - y1); return `<rect x="${x}" y="${y1}" width="${bw}" height="${h}" rx="2" fill="${fill}" data-tip="${esc(c)} ${lab}：${fmt(v)}"/>`; };
+      bars += draw(b[i], x0, 'var(--series-2)', labelB) + draw(a[i], x0 + bw + 2, 'var(--series-1)', labelA);
+      bars += `<text x="${padL + gw * i + gw / 2}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--ink-2)">${esc(c)}</text>`;
+    });
+    const zero = `<line x1="${padL}" x2="${W - padR}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line-2)" stroke-width="1"/>`;
+    return `<div class="legend"><span><i style="background:var(--series-1)"></i>${labelA}</span><span><i style="background:var(--series-2)"></i>${labelB}</span></div><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${labelA}與${labelB}長條圖">${g}${bars}${zero}</svg>`;
+  }
+  function openDetail(code) {
+    const s = D.stocks[code], r = rows.find(x => x.code === code); if (!s) return;
+    const L = D.months.length;
+    const mRows = D.months.map((m, i) => { const mom = i ? pct(s.rev[i], s.rev[i - 1]) : null; return `<tr><td class="l">${m}</td><td class="num">${fmtN(s.rev[i] == null ? null : s.rev[i] / 1000)}</td><td class="num">${fmtN(s.ly[i] == null ? null : s.ly[i] / 1000)}</td><td class="num ${cls(pct(s.rev[i], s.ly[i]))}">${fmtP(pct(s.rev[i], s.ly[i]))}</td><td class="num ${cls(mom)}">${fmtP(mom)}</td></tr>`; }).join('');
+    const qIdx = []; for (let i = D.quarters.length - 8; i < D.quarters.length; i++) qIdx.push(i);
+    const qs = qIdx.map(i => ({ lab: D.quarters[i], cur: singleQ(s, i), ly: singleQ(s, i - 4) }));
+    const epsRows = qs.map(q => { const e = q.cur ? q.cur[6] : null, el = q.ly ? q.ly[6] : null; return `<tr><td class="l">${q.lab}</td><td class="num ${cls(e)}">${fmtN(e, 2)}</td><td class="num ${cls(el)}">${fmtN(el, 2)}</td><td class="num ${cls(pct(e, el))}">${fmtP(pct(e, el))}</td></tr>`; }).join('');
+    const mg = q => { if (!q.cur || !q.cur[0]) return ['—', '—', '—']; const r0 = q.cur[0]; const f = n => q.cur[n] == null ? '—' : fmtP(q.cur[n] / r0); return [f(1), f(2), (q.cur[5] ?? q.cur[4]) == null ? '—' : fmtP((q.cur[5] ?? q.cur[4]) / r0)]; };
+    const mgRows = qs.map(q => { const [a, b, c] = mg(q); return `<tr><td class="l">${q.lab}</td><td class="num">${a}</td><td class="num">${b}</td><td class="num">${c}</td></tr>`; }).join('');
+    const mLab = D.months.map(m => m.slice(0, 3) + '/' + m.slice(4));
+    const revChart = barChart(D.months.map(m => m.slice(4)), s.rev.map(v => v == null ? null : v / 1000), s.ly.map(v => v == null ? null : v / 1000), '當月營收', '去年同期', v => fmtN(v));
+    const epsChart = barChart(qs.map(q => q.lab.slice(0, 3) + 'Q' + q.lab.slice(-1)), qs.map(q => q.cur ? q.cur[6] : null), qs.map(q => q.ly ? q.ly[6] : null), '單季 EPS', '去年同期', v => v.toFixed(2));
+    const finNote = (r && r.gm == null) ? '<p class="note" style="margin-top:0">此公司非一般產業損益表格式（如金融業），毛利率等比率不適用，僅列 EPS。</p>' : '';
+    $('#drawerRoot').innerHTML = `<div class="overlay" data-close></div>
+      <div class="drawer" role="dialog" aria-modal="true" aria-label="${esc(s.n)} 財務明細">
+        <div class="drawer-h"><div style="flex:1;min-width:0"><h2>${esc(s.n)}（${code}）</h2><div class="meta">${s.m} · ${esc(s.i)} · 單位：百萬元 / 元</div></div>
+          <button type="button" class="add" data-pk="${code}" aria-pressed="${pk.includes(code)}">${pk.includes(code) ? '已加入 PK' : '加入 PK'}</button>
+          <button type="button" class="x" data-close aria-label="關閉">×</button></div>
+        <div class="drawer-b">
+          <section class="sec"><h3>月營收明細 <small>${mLab[0]} – ${mLab[L - 1]}</small></h3>${revChart}
+            <div style="overflow-x:auto"><table><thead><tr><th class="l">年/月</th><th>營收</th><th>去年同期</th><th>年增率</th><th>月增率</th></tr></thead><tbody>${mRows}</tbody></table></div></section>
+          <section class="sec"><h3>近八季 EPS <small>單季，自累計數拆算</small></h3>${epsChart}${finNote}
+            <div style="overflow-x:auto"><table><thead><tr><th class="l">季別</th><th>今年</th><th>去年同期</th><th>年增率</th></tr></thead><tbody>${epsRows}</tbody></table></div></section>
+          <section class="sec"><h3>近八季獲利能力 <small>單季</small></h3>
+            <div style="overflow-x:auto"><table><thead><tr><th class="l">季別</th><th>營業毛利率</th><th>營業利益率</th><th>稅後淨利率</th></tr></thead><tbody>${mgRows}</tbody></table></div></section>
+        </div></div>`;
+    document.body.style.overflow = 'hidden';
+    $('.drawer .x').focus();
+  }
+  function closeDetail() { $('#drawerRoot').innerHTML = ''; document.body.style.overflow = ''; $('#tip').hidden = true; }
+
+  // ---- events ----
+  document.addEventListener('click', e => {
+    const t = e.target.closest('button, [data-close], th[data-k]'); if (!t) return;
+    if (t.dataset.detail) return openDetail(t.dataset.detail);
+    if (t.dataset.pk) { togglePK(t.dataset.pk); if ($('.drawer')) { const b = $('.drawer .add'); b.setAttribute('aria-pressed', pk.includes(t.dataset.pk)); b.textContent = pk.includes(t.dataset.pk) ? '已加入 PK' : '加入 PK'; } return; }
+    if (t.dataset.rm) return togglePK(t.dataset.rm);
+    if (t.hasAttribute('data-close')) return closeDetail();
+    if (t.id === 'pkClear') { pk = []; LS.set('pk', pk); renderPK(); renderList(); return; }
+    if (t.dataset.k && t.closest('#listWrap')) { const k = t.dataset.k; if (k === 'pk') return; state.sort = state.sort.k === k ? { k, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' } : { k, dir: (k === 'code' || k === 'name') ? 'asc' : 'desc' }; LS.set('sort', state.sort); renderList(); return; }
+    if (t.closest('#market')) { state.market = t.dataset.v; LS.set('market', state.market); [...$('#market').children].forEach(b => b.setAttribute('aria-pressed', b === t)); fillIndustries(); renderList(); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('.drawer')) closeDetail(); });
+  $('#industry').addEventListener('change', e => { state.industry = e.target.value; LS.set('industry', state.industry); renderList(); });
+  $('#q').addEventListener('input', e => { state.q = e.target.value; renderList(); });
+  for (const id of ['fGm', 'fMom', 'fYoy']) $('#' + id).addEventListener('change', e => { state[id] = e.target.checked; e.target.closest('.toggle').dataset.on = e.target.checked; if (id === 'fGm') LS.set('fGm', state.fGm); renderList(); });
+  $('#gmMin').addEventListener('input', e => { const v = parseFloat(e.target.value); if (isFinite(v)) { state.gmMin = v; LS.set('gmMin', v); renderList(); } });
+  $('#gmMin').addEventListener('click', e => e.preventDefault());
+  // tooltips for chart bars
+  document.addEventListener('mousemove', e => { const r = e.target.closest && e.target.closest('rect[data-tip]'); const tip = $('#tip'); if (!r) { tip.hidden = true; return; } tip.textContent = r.dataset.tip; tip.hidden = false; tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; });
+
+  function fillIndustries() {
+    const set = new Set(rows.filter(r => state.market === '全部' || r.market === state.market).map(r => r.ind));
+    const list = ['全部產業', ...[...set].sort((a, b) => a.localeCompare(b, 'zh-Hant'))];
+    if (!list.includes(state.industry)) state.industry = list.includes('電腦及週邊設備業') ? '電腦及週邊設備業' : list[1] || list[0];
+    $('#industry').innerHTML = list.map(i => `<option ${i === state.industry ? 'selected' : ''}>${esc(i)}</option>`).join('');
+  }
+  function applyStateToControls() {
+    [...$('#market').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.market));
+    $('#fGm').checked = state.fGm; $('#fGm').closest('.toggle').dataset.on = state.fGm; $('#gmMin').value = state.gmMin;
+  }
+
+  fetch('data/snapshot.json').then(r => r.json()).then(d => {
+    D = d; compute();
+    const L = D.months.length - 1, Q = D.quarters.length - 1, n = rows.length;
+    $('#chips').innerHTML = `<span class="chip">月營收 <b>${D.months[L]}</b></span><span class="chip">季報 <b>${D.quarters[Q]}</b></span><span class="chip">涵蓋 <b>${n.toLocaleString()}</b> 檔上市櫃</span><span class="chip">資料擷取 <b>${D.asof.fetched}</b></span>`;
+    $('#note').innerHTML = `資料來源：公開資訊觀測站（月營收彙總表、綜合損益表彙總）、臺灣證券交易所與櫃買中心 OpenAPI。月營收單位為新台幣，表內換算為百萬元；季報比率以 ${D.quarters[Q]} 單季計算（由累計數拆算），EPS 年增率以去年同季單季 EPS 為基準。金融保險等非一般業損益表格式者不計算毛利率。紅色為正、綠色為負，依台股慣例。`;
+    applyStateToControls(); fillIndustries(); renderList(); renderPK();
+  }).catch(() => { $('#listWrap').innerHTML = '<div class="empty">資料載入失敗，請重新整理頁面。</div>'; $('#chips').innerHTML = ''; });
+})();
+</script>
+
+</body>
+</html>
