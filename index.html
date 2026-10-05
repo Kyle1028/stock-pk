@@ -167,8 +167,8 @@ td.l { text-align: left; }
     <div class="ctl"><label for="industry">產業別</label><select id="industry"></select></div>
     <div class="ctl"><label for="q">搜尋</label><input type="search" id="q" placeholder="代號或名稱"></div>
     <label class="toggle" data-on="true"><input type="checkbox" id="fGm" checked> 毛利率 ≥ <input type="number" id="gmMin" value="15" min="-100" max="100" step="1" aria-label="毛利率門檻"> %</label>
-    <label class="toggle" data-on="false"><input type="checkbox" id="fMom"> 月增率 &gt; 0</label>
-    <label class="toggle" data-on="false"><input type="checkbox" id="fYoy"> 年增率 &gt; 0</label>
+    <label class="toggle" data-on="false"><input type="checkbox" id="fMom"> 月增率 ≥ <input type="number" id="momMin" value="0" min="-100" step="1" aria-label="月增率門檻"> %</label>
+    <label class="toggle" data-on="false"><input type="checkbox" id="fYoy"> 年增率 ≥ <input type="number" id="yoyMin" value="0" min="-100" step="1" aria-label="年增率門檻"> %</label>
     <div class="spacer"></div>
     <div class="count" id="count"></div>
   </section>
@@ -204,7 +204,7 @@ td.l { text-align: left; }
 
   let D = null;            // snapshot
   let rows = [];           // computed metrics per stock
-  let state = { market: LS.get('market', '上市'), industry: LS.get('industry', '電腦及週邊設備業'), q: '', fGm: LS.get('fGm', true), gmMin: LS.get('gmMin', 15), fMom: false, fYoy: false, sort: LS.get('sort', { k: 'rev', dir: 'desc' }) };
+  let state = { market: LS.get('market', '上市'), industry: LS.get('industry', '電腦及週邊設備業'), q: '', fGm: LS.get('fGm', true), gmMin: LS.get('gmMin', 15), fMom: LS.get('fMom', false), momMin: LS.get('momMin', 0), fYoy: LS.get('fYoy', false), yoyMin: LS.get('yoyMin', 0), sort: LS.get('sort', { k: 'rev', dir: 'desc' }) };
   let pk = LS.get('pk', ['2362', '2353', '2376', '2377', '2382', '2324']);
 
   // ---- metrics ----
@@ -237,8 +237,8 @@ td.l { text-align: left; }
     return rows.filter(r => (state.market === '全部' || r.market === state.market)
       && (q ? (r.code.includes(q) || r.name.toLowerCase().includes(q)) : (state.industry === '全部產業' || r.ind === state.industry))
       && (!state.fGm || (r.gm != null && r.gm >= state.gmMin / 100))
-      && (!state.fMom || (r.mom != null && r.mom > 0))
-      && (!state.fYoy || (r.yoy != null && r.yoy > 0)));
+      && (!state.fMom || (r.mom != null && r.mom >= state.momMin / 100))
+      && (!state.fYoy || (r.yoy != null && r.yoy >= state.yoyMin / 100)));
   }
   const COLS = [
     { k: 'code', t: '代號', l: true }, { k: 'name', t: '名稱', l: true }, { k: 'rev', t: '月營收(百萬)', f: v => fmtN(v / 1000) },
@@ -375,9 +375,17 @@ td.l { text-align: left; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('.drawer')) closeDetail(); });
   $('#industry').addEventListener('change', e => { state.industry = e.target.value; LS.set('industry', state.industry); renderList(); });
   $('#q').addEventListener('input', e => { state.q = e.target.value; renderList(); });
-  for (const id of ['fGm', 'fMom', 'fYoy']) $('#' + id).addEventListener('change', e => { state[id] = e.target.checked; e.target.closest('.toggle').dataset.on = e.target.checked; if (id === 'fGm') LS.set('fGm', state.fGm); renderList(); });
-  $('#gmMin').addEventListener('input', e => { const v = parseFloat(e.target.value); if (isFinite(v)) { state.gmMin = v; LS.set('gmMin', v); renderList(); } });
-  $('#gmMin').addEventListener('click', e => e.preventDefault());
+  for (const id of ['fGm', 'fMom', 'fYoy']) $('#' + id).addEventListener('change', e => { state[id] = e.target.checked; e.target.closest('.toggle').dataset.on = e.target.checked; LS.set(id, state[id]); renderList(); });
+  // 門檻輸入框：改數字時自動勾選對應的條件
+  for (const [inp, flag] of [['gmMin', 'fGm'], ['momMin', 'fMom'], ['yoyMin', 'fYoy']]) {
+    $('#' + inp).addEventListener('input', e => {
+      const v = parseFloat(e.target.value); if (!isFinite(v)) return;
+      state[inp] = v; LS.set(inp, v);
+      if (!state[flag]) { state[flag] = true; $('#' + flag).checked = true; $('#' + flag).closest('.toggle').dataset.on = true; LS.set(flag, true); }
+      renderList();
+    });
+    $('#' + inp).addEventListener('click', e => e.preventDefault());
+  }
   // tooltips for chart bars
   document.addEventListener('mousemove', e => { const r = e.target.closest && e.target.closest('rect[data-tip]'); const tip = $('#tip'); if (!r) { tip.hidden = true; return; } tip.textContent = r.dataset.tip; tip.hidden = false; tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; });
 
@@ -389,7 +397,9 @@ td.l { text-align: left; }
   }
   function applyStateToControls() {
     [...$('#market').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.market));
-    $('#fGm').checked = state.fGm; $('#fGm').closest('.toggle').dataset.on = state.fGm; $('#gmMin').value = state.gmMin;
+    for (const [inp, flag] of [['gmMin', 'fGm'], ['momMin', 'fMom'], ['yoyMin', 'fYoy']]) {
+      $('#' + flag).checked = state[flag]; $('#' + flag).closest('.toggle').dataset.on = state[flag]; $('#' + inp).value = state[inp];
+    }
   }
 
   fetch('data/snapshot.json').then(r => r.json()).then(d => {

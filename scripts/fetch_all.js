@@ -8,7 +8,7 @@ const out = path.join(__dirname, '..', 'data', 'snapshot.json');
 async function getText(url, opts = {}, enc = 'utf-8') {
   for (let t = 0; t < 4; t++) {
     try {
-      const r = await fetch(url, { headers: { 'User-Agent': UA, ...(opts.headers || {}) }, method: opts.method || 'GET', body: opts.body });
+      const r = await fetch(url, { headers: { 'User-Agent': UA, ...(opts.headers || {}) }, method: opts.method || 'GET', body: opts.body, signal: AbortSignal.timeout(60000) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return new TextDecoder(enc).decode(Buffer.from(await r.arrayBuffer()));
     } catch (e) { console.error('retry', url, e.message); await sleep(3000 * (t + 1)); }
