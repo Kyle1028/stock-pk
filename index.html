@@ -80,6 +80,8 @@ input[type="search"] { width: 170px; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 10px; background: var(--surface-2); user-select: none; }
 .toggle input { margin: 0; accent-color: var(--accent); }
 .toggle[data-on="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.filters { display: contents; }
+.toggle .unit { color: var(--ink-2); }
 .spacer { flex: 1; }
 .count { color: var(--ink-2); white-space: nowrap; }
 .count b { color: var(--ink); font-weight: 600; font-size: 16px; }
@@ -166,9 +168,7 @@ td.l { text-align: left; }
     </div>
     <div class="ctl"><label for="industry">產業別</label><select id="industry"></select></div>
     <div class="ctl"><label for="q">搜尋</label><input type="search" id="q" placeholder="代號或名稱"></div>
-    <label class="toggle" data-on="true"><input type="checkbox" id="fGm" checked> 毛利率 ≥ <input type="number" id="gmMin" value="15" min="-100" max="100" step="1" aria-label="毛利率門檻"> %</label>
-    <label class="toggle" data-on="false"><input type="checkbox" id="fMom"> 月增率 ≥ <input type="number" id="momMin" value="0" min="-100" step="1" aria-label="月增率門檻"> %</label>
-    <label class="toggle" data-on="false"><input type="checkbox" id="fYoy"> 年增率 ≥ <input type="number" id="yoyMin" value="0" min="-100" step="1" aria-label="年增率門檻"> %</label>
+    <div class="filters" id="filters"></div>
     <div class="spacer"></div>
     <div class="count" id="count"></div>
   </section>
@@ -204,7 +204,20 @@ td.l { text-align: left; }
 
   let D = null;            // snapshot
   let rows = [];           // computed metrics per stock
-  let state = { market: LS.get('market', '上市'), industry: LS.get('industry', '電腦及週邊設備業'), q: '', fGm: LS.get('fGm', true), gmMin: LS.get('gmMin', 15), fMom: LS.get('fMom', false), momMin: LS.get('momMin', 0), fYoy: LS.get('fYoy', false), yoyMin: LS.get('yoyMin', 0), sort: LS.get('sort', { k: 'rev', dir: 'desc' }) };
+  // 數值篩選條件：on = 是否啟用、val = 門檻（顯示單位）；scale 為顯示值換算成資料值的除數；abs 取絕對值、max 為「以下」
+  const FILTERS = [
+    { flag: 'fVol', inp: 'volMin', key: 'vol', label: '日均量 ≥', unit: '張', on: true, val: 1000, scale: 1, step: 100, min: 0 },
+    { flag: 'fGm', inp: 'gmMin', key: 'gm', label: '毛利率 ≥', unit: '%', on: true, val: 15, scale: 100, step: 1, min: -100 },
+    { flag: 'fMom', inp: 'momMin', key: 'mom', label: '月增率 ≥', unit: '%', on: false, val: 0, scale: 100, step: 1, min: -100 },
+    { flag: 'fYoy', inp: 'yoyMin', key: 'yoy', label: '年增率 ≥', unit: '%', on: false, val: 0, scale: 100, step: 1, min: -100 },
+    { flag: 'fOm', inp: 'omMin', key: 'om', label: '營益率 ≥', unit: '%', on: false, val: 5, scale: 100, step: 1, min: -100 },
+    { flag: 'fNm', inp: 'nmMin', key: 'nm', label: '淨利率 ≥', unit: '%', on: false, val: 5, scale: 100, step: 1, min: -100 },
+    { flag: 'fNonop', inp: 'nonopMax', key: 'nonop', label: '業外收支/營收 ±≤', unit: '%', on: false, val: 20, scale: 100, step: 1, min: 0, abs: true, max: true },
+    { flag: 'fEps', inp: 'epsMin', key: 'eps', label: 'EPS ≥', unit: '元', on: false, val: 0, scale: 1, step: 0.5, min: -100 },
+    { flag: 'fEpsYoy', inp: 'epsYoyMin', key: 'epsYoy', label: 'EPS年增 ≥', unit: '%', on: false, val: 0, scale: 100, step: 1, min: -100 },
+  ];
+  let state = { market: LS.get('market', '上市'), industry: LS.get('industry', '電腦及週邊設備業'), q: '', sort: LS.get('sort', { k: 'rev', dir: 'desc' }) };
+  for (const f of FILTERS) { state[f.flag] = LS.get(f.flag, f.on); state[f.inp] = LS.get(f.inp, f.val); }
   let pk = LS.get('pk', ['2362', '2353', '2376', '2377', '2382', '2324']);
 
   // ---- metrics ----
@@ -226,7 +239,7 @@ td.l { text-align: left; }
       const r = q && q[0] ? q[0] : null;
       const safe = (n) => (q && r && q[n] != null) ? q[n] / r : null;
       const eps = q ? q[6] : null, epsLy = qly ? qly[6] : null;
-      return { code, name: s.n, market: s.m, ind: s.i, rev, mom: pct(rev, prev), yoy: pct(rev, ly), cumYoy: has ? pct(cum, cumLy) : null,
+      return { code, name: s.n, market: s.m, ind: s.i, rev, vol: s.v ?? null, mom: pct(rev, prev), yoy: pct(rev, ly), cumYoy: has ? pct(cum, cumLy) : null,
         gm: safe(1), om: safe(2), nm: (q && r && (q[5] ?? q[4]) != null) ? (q[5] ?? q[4]) / r : null, nonop: safe(3), eps, epsYoy: pct(eps, epsLy), s };
     });
   }
@@ -236,14 +249,17 @@ td.l { text-align: left; }
     const q = state.q.trim().toLowerCase();
     return rows.filter(r => (state.market === '全部' || r.market === state.market)
       && (q ? (r.code.includes(q) || r.name.toLowerCase().includes(q)) : (state.industry === '全部產業' || r.ind === state.industry))
-      && (!state.fGm || (r.gm != null && r.gm >= state.gmMin / 100))
-      && (!state.fMom || (r.mom != null && r.mom >= state.momMin / 100))
-      && (!state.fYoy || (r.yoy != null && r.yoy >= state.yoyMin / 100)));
+      && FILTERS.every(f => {
+        if (!state[f.flag]) return true;
+        const v = r[f.key]; if (v == null || !isFinite(v)) return false;
+        const x = f.abs ? Math.abs(v) : v, t = state[f.inp] / f.scale;
+        return f.max ? x <= t : x >= t;
+      }));
   }
   const COLS = [
-    { k: 'code', t: '代號', l: true }, { k: 'name', t: '名稱', l: true }, { k: 'rev', t: '月營收(百萬)', f: v => fmtN(v / 1000) },
+    { k: 'code', t: '代號', l: true }, { k: 'name', t: '名稱', l: true }, { k: 'rev', t: '月營收(百萬)', f: v => fmtN(v / 1000) }, { k: 'vol', t: '日均量(張)', f: v => fmtN(v) },
     { k: 'mom', t: '月增率', f: fmtP, c: true }, { k: 'yoy', t: '年增率', f: fmtP, c: true }, { k: 'cumYoy', t: '累計年增', f: fmtP, c: true },
-    { k: 'gm', t: '毛利率', f: fmtP }, { k: 'om', t: '營益率', f: fmtP, c: true }, { k: 'nm', t: '淨利率', f: fmtP, c: true },
+    { k: 'gm', t: '毛利率', f: fmtP }, { k: 'om', t: '營益率', f: fmtP, c: true }, { k: 'nm', t: '淨利率', f: fmtP, c: true }, { k: 'nonop', t: '業外/營收', f: fmtP, c: true },
     { k: 'eps', t: 'EPS(元)', f: v => fmtN(v, 2), c: true }, { k: 'epsYoy', t: 'EPS年增', f: fmtP, c: true }, { k: 'pk', t: 'PK' }
   ];
   function sortRows(list) {
@@ -260,7 +276,7 @@ td.l { text-align: left; }
     const total = rows.filter(r => (state.market === '全部' || r.market === state.market) && (state.industry === '全部產業' || r.ind === state.industry)).length;
     $('#count').innerHTML = `符合 <b>${list.length}</b> / ${total} 檔`;
     $('#listTitle').textContent = state.q.trim() ? `搜尋「${state.q.trim()}」` : `${state.industry}（${state.market}）`;
-    if (!list.length) { $('#listWrap').innerHTML = '<div class="empty">沒有符合條件的個股。放寬毛利率門檻或取消月增、年增條件試試。</div>'; return; }
+    if (!list.length) { $('#listWrap').innerHTML = '<div class="empty">沒有符合條件的個股。放寬門檻或取消部分篩選條件試試。</div>'; return; }
     const th = COLS.map(c => `<th class="${c.l ? 'l' : ''}" data-k="${c.k}" ${state.sort.k === c.k ? `aria-sort="${state.sort.dir === 'asc' ? 'ascending' : 'descending'}"` : ''}>${c.t}</th>`).join('');
     const tr = list.map(r => `<tr data-code="${r.code}" class="${pk.includes(r.code) ? 'sel' : ''}">` + COLS.map(c => {
       if (c.k === 'code') return `<td class="l code">${r.code}</td>`;
@@ -275,6 +291,7 @@ td.l { text-align: left; }
   const PKROWS = [
     { band: `月資料` },
     { t: '月營收(百萬元)', k: 'rev', f: v => fmtN(v / 1000), best: 'max' },
+    { t: '日均成交量(張)', k: 'vol', f: v => fmtN(v), best: 'max' },
     { t: '月營收月增率', k: 'mom', f: fmtP, c: true, best: 'max' },
     { t: '月營收年增率', k: 'yoy', f: fmtP, c: true, best: 'max' },
     { t: '累計營收年增率', k: 'cumYoy', f: fmtP, c: true, best: 'max' },
@@ -290,7 +307,7 @@ td.l { text-align: left; }
     const sel = pk.map(c => rows.find(r => r.code === c)).filter(Boolean);
     const L = D.months.length - 1, Q = D.quarters.length - 1;
     $('#pkHint').textContent = sel.length ? `${sel.length} / 6 檔` : '';
-    $('#pkFoot').innerHTML = sel.length ? `月資料為 ${D.months[L]}，季資料為 ${D.quarters[Q]} 單季。● 為該列最佳。 <button type="button" class="clear" id="pkClear">清空</button>` : '';
+    $('#pkFoot').innerHTML = sel.length ? `月資料為 ${D.months[L]}，季資料為 ${D.quarters[Q]} 單季，日均量為${volSpan()}。● 為該列最佳。 <button type="button" class="clear" id="pkClear">清空</button>` : '';
     if (!sel.length) { $('#pkWrap').innerHTML = '<div class="empty">尚未選擇個股。在左側表格按「PK」加入，最多比較 6 檔。</div>'; return; }
     const th = `<th class="l">財務比率 / 個股</th>` + sel.map(r => `<th><span class="pkname"><button type="button" class="name" data-detail="${r.code}">${esc(r.name)}</button> <button type="button" class="rm" data-rm="${r.code}" aria-label="移除 ${esc(r.name)}">×</button></span><span class="pkcode">${r.code}</span></th>`).join('');
     const body = PKROWS.map(row => {
@@ -375,16 +392,20 @@ td.l { text-align: left; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('.drawer')) closeDetail(); });
   $('#industry').addEventListener('change', e => { state.industry = e.target.value; LS.set('industry', state.industry); renderList(); });
   $('#q').addEventListener('input', e => { state.q = e.target.value; renderList(); });
-  for (const id of ['fGm', 'fMom', 'fYoy']) $('#' + id).addEventListener('change', e => { state[id] = e.target.checked; e.target.closest('.toggle').dataset.on = e.target.checked; LS.set(id, state[id]); renderList(); });
-  // 門檻輸入框：改數字時自動勾選對應的條件
-  for (const [inp, flag] of [['gmMin', 'fGm'], ['momMin', 'fMom'], ['yoyMin', 'fYoy']]) {
-    $('#' + inp).addEventListener('input', e => {
-      const v = parseFloat(e.target.value); if (!isFinite(v)) return;
-      state[inp] = v; LS.set(inp, v);
-      if (!state[flag]) { state[flag] = true; $('#' + flag).checked = true; $('#' + flag).closest('.toggle').dataset.on = true; LS.set(flag, true); }
-      renderList();
-    });
-    $('#' + inp).addEventListener('click', e => e.preventDefault());
+  function buildFilters() {
+    $('#filters').innerHTML = FILTERS.map(f => `<label class="toggle" data-on="${state[f.flag]}"><input type="checkbox" id="${f.flag}" ${state[f.flag] ? 'checked' : ''}> ${f.label} <input type="number" id="${f.inp}" value="${state[f.inp]}" min="${f.min}" step="${f.step}" aria-label="${f.label.replace(/ [≥≤±]+$/, '')}門檻"> <span class="unit">${f.unit}</span></label>`).join('');
+    for (const f of FILTERS) {
+      const cb = $('#' + f.flag), inp = $('#' + f.inp), box = cb.closest('.toggle');
+      cb.addEventListener('change', e => { state[f.flag] = e.target.checked; box.dataset.on = e.target.checked; LS.set(f.flag, state[f.flag]); renderList(); });
+      // 門檻輸入框：改數字時自動勾選對應的條件
+      inp.addEventListener('input', e => {
+        const v = parseFloat(e.target.value); if (!isFinite(v)) return;
+        state[f.inp] = v; LS.set(f.inp, v);
+        if (!state[f.flag]) { state[f.flag] = true; cb.checked = true; box.dataset.on = true; LS.set(f.flag, true); }
+        renderList();
+      });
+      inp.addEventListener('click', e => e.preventDefault());
+    }
   }
   // tooltips for chart bars
   document.addEventListener('mousemove', e => { const r = e.target.closest && e.target.closest('rect[data-tip]'); const tip = $('#tip'); if (!r) { tip.hidden = true; return; } tip.textContent = r.dataset.tip; tip.hidden = false; tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; });
@@ -397,17 +418,15 @@ td.l { text-align: left; }
   }
   function applyStateToControls() {
     [...$('#market').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.market));
-    for (const [inp, flag] of [['gmMin', 'fGm'], ['momMin', 'fMom'], ['yoyMin', 'fYoy']]) {
-      $('#' + flag).checked = state[flag]; $('#' + flag).closest('.toggle').dataset.on = state[flag]; $('#' + inp).value = state[inp];
-    }
   }
+  const volSpan = () => D.asof.vol ? `近 ${D.asof.vol.days} 個交易日（${D.asof.vol.from.slice(4, 6)}/${D.asof.vol.from.slice(6)}–${D.asof.vol.to.slice(4, 6)}/${D.asof.vol.to.slice(6)}）平均` : '—';
 
   fetch('data/snapshot.json').then(r => r.json()).then(d => {
     D = d; compute();
     const L = D.months.length - 1, Q = D.quarters.length - 1, n = rows.length;
-    $('#chips').innerHTML = `<span class="chip">月營收 <b>${D.months[L]}</b></span><span class="chip">季報 <b>${D.quarters[Q]}</b></span><span class="chip">涵蓋 <b>${n.toLocaleString()}</b> 檔上市櫃</span><span class="chip">資料擷取 <b>${D.asof.fetched}</b></span>`;
-    $('#note').innerHTML = `資料來源：公開資訊觀測站（月營收彙總表、綜合損益表彙總）、臺灣證券交易所與櫃買中心 OpenAPI。月營收單位為新台幣，表內換算為百萬元；季報比率以 ${D.quarters[Q]} 單季計算（由累計數拆算），EPS 年增率以去年同季單季 EPS 為基準。金融保險等非一般業損益表格式者不計算毛利率。紅色為正、綠色為負，依台股慣例。`;
-    applyStateToControls(); fillIndustries(); renderList(); renderPK();
+    $('#chips').innerHTML = `<span class="chip">月營收 <b>${D.months[L]}</b></span><span class="chip">季報 <b>${D.quarters[Q]}</b></span>${D.asof.vol ? `<span class="chip">日均量 <b>近${D.asof.vol.days}日</b></span>` : ''}<span class="chip">涵蓋 <b>${n.toLocaleString()}</b> 檔上市櫃</span><span class="chip">資料擷取 <b>${D.asof.fetched}</b></span>`;
+    $('#note').innerHTML = `資料來源：公開資訊觀測站（月營收彙總表、綜合損益表彙總）、臺灣證券交易所與櫃買中心 OpenAPI。日均成交量為近 20 個交易日成交股數的平均（以張計，1 張 = 1,000 股），取自證交所與櫃買中心每日收盤行情。月營收單位為新台幣，表內換算為百萬元；季報比率以 ${D.quarters[Q]} 單季計算（由累計數拆算），EPS 年增率以去年同季單季 EPS 為基準。金融保險等非一般業損益表格式者不計算毛利率。紅色為正、綠色為負，依台股慣例。`;
+    buildFilters(); applyStateToControls(); fillIndustries(); renderList(); renderPK();
   }).catch(() => { $('#listWrap').innerHTML = '<div class="empty">資料載入失敗，請重新整理頁面。</div>'; $('#chips').innerHTML = ''; });
 })();
 </script>

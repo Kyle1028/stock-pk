@@ -83,6 +83,9 @@ const tables = html => [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi)].m
   // 4. 基本檢查後寫檔（抓到的家數太少就視為失敗，不覆蓋舊檔）
   const got = Object.values(stocks).filter(s => s.rev[11] != null).length;
   if (got < 1500) throw new Error('too few companies with latest revenue: ' + got);
-  fs.writeFileSync(out, JSON.stringify({ asof: { month: monthLabels[11], quarter: quarterLabels[12], fetched: new Date().toISOString().slice(0, 10) }, months: monthLabels, quarters: quarterLabels, stocks }));
+  const snap = { asof: { month: monthLabels[11], quarter: quarterLabels[12], fetched: new Date().toISOString().slice(0, 10) }, months: monthLabels, quarters: quarterLabels, stocks };
+  // 5. 日均成交量（失敗不影響財報資料，只是網頁上沒有量能欄位）
+  try { await require('./fetch_volume').addVolume(snap); } catch (e) { console.error('volume failed', e.message); }
+  fs.writeFileSync(out, JSON.stringify(snap));
   console.log('wrote', out, fs.statSync(out).size, 'companies', Object.keys(stocks).length);
 })().catch(e => { console.error(e); process.exit(1); });
