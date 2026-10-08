@@ -31,6 +31,7 @@
   --series-2: #b9b6ac;
   --grid: #e1e0d9;
   --shadow: 0 10px 30px rgba(28,30,36,.14);
+  --shadow-sm: 0 1px 2px rgba(28,30,36,.06), 0 2px 8px rgba(28,30,36,.04);
   --font-ui: "IBM Plex Sans", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   --font-tc: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
@@ -39,18 +40,18 @@
     --bg: #15161a; --surface: #1e2026; --surface-2: #23262d; --ink: #ecebe6; --ink-2: #b4b3ab; --ink-3: #7d7f88;
     --line: #2e3139; --line-2: #3c404a; --accent: #8fb0e6; --accent-soft: #263349; --gold: #a7822a; --gold-ink: #fff7df;
     --up: #ef6b5e; --down: #4fbf7c; --up-soft: #3a2220; --down-soft: #1b3326; --series-1: #3987e5; --series-2: #5a5d66; --grid: #2c2c2a;
-    --shadow: 0 10px 30px rgba(0,0,0,.5); color-scheme: dark;
+    --shadow: 0 10px 30px rgba(0,0,0,.5); --shadow-sm: 0 1px 2px rgba(0,0,0,.4); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #15161a; --surface: #1e2026; --surface-2: #23262d; --ink: #ecebe6; --ink-2: #b4b3ab; --ink-3: #7d7f88;
   --line: #2e3139; --line-2: #3c404a; --accent: #8fb0e6; --accent-soft: #263349; --gold: #a7822a; --gold-ink: #fff7df;
   --up: #ef6b5e; --down: #4fbf7c; --up-soft: #3a2220; --down-soft: #1b3326; --series-1: #3987e5; --series-2: #5a5d66; --grid: #2c2c2a;
-  --shadow: 0 10px 30px rgba(0,0,0,.5); color-scheme: dark;
+  --shadow: 0 10px 30px rgba(0,0,0,.5); --shadow-sm: 0 1px 2px rgba(0,0,0,.4); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
-.wrap { max-width: 1480px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 48px; }
+.wrap { max-width: 1680px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 48px; }
 h1, h2, h3 { font-family: var(--font-tc); margin: 0; text-wrap: balance; }
 button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -60,61 +61,88 @@ button { cursor: pointer; }
 
 /* header */
 .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 14px; }
-.head h1 { font-size: 24px; font-weight: 700; letter-spacing: .02em; }
+.head h1 { font-size: 26px; font-weight: 700; letter-spacing: .02em; display: flex; align-items: center; gap: 10px; }
+.logo { width: 34px; height: 34px; border-radius: 10px; background: var(--gold); color: var(--gold-ink); display: grid; place-items: center; flex: none; }
+.head .sub { font-size: 13.5px; }
 .head .sub { color: var(--ink-2); margin-top: 2px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { border: 1px solid var(--line-2); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--ink-2); background: var(--surface); white-space: nowrap; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 12px; box-shadow: var(--shadow-sm); color: var(--ink-2); background: var(--surface); white-space: nowrap; }
 .chip b { color: var(--ink); font-weight: 600; }
 
 /* controls */
-.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
+.filters { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.filters .lbl { margin-right: 4px; font-size: 12px; color: var(--ink-2); }
+.more-btn { border: 1px dashed var(--line-2); background: none; border-radius: 999px; padding: 4px 12px; color: var(--ink-2); font-size: 13px; min-height: 34px; }
+.more-btn:hover { border-color: var(--accent); color: var(--accent); }
+.more-btn .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.extra { display: contents; }
+.extra[hidden] { display: none; }
+.reset { border: 0; background: none; color: var(--ink-3); font-size: 12px; padding: 4px 6px; text-decoration: underline; text-underline-offset: 3px; }
+.reset:hover { color: var(--accent); }
 .ctl { display: flex; align-items: center; gap: 6px; }
 .ctl label, .ctl .lbl { font-size: 12px; color: var(--ink-2); letter-spacing: .04em; white-space: nowrap; }
-.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .seg button { background: var(--surface); border: 0; padding: 6px 12px; color: var(--ink-2); }
 .seg button + button { border-left: 1px solid var(--line-2); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 select, input[type="search"], input[type="number"] { background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 10px; min-height: 34px; }
 input[type="number"] { width: 72px; text-align: right; }
 input[type="search"] { width: 170px; }
-.toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 10px; background: var(--surface-2); user-select: none; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-2); border-radius: 999px; padding: 4px 12px; background: var(--surface); color: var(--ink-2); user-select: none; transition: background .15s, border-color .15s; }
 .toggle input { margin: 0; accent-color: var(--accent); }
-.toggle[data-on="true"] { border-color: var(--accent); background: var(--accent-soft); }
-.filters { display: contents; }
+.toggle[data-on="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 500; }
+.toggle input[type="number"] { min-height: 28px; padding: 2px 6px; background: var(--surface); }
 .toggle .unit { color: var(--ink-2); }
 .spacer { flex: 1; }
 .count { color: var(--ink-2); white-space: nowrap; }
 .count b { color: var(--ink); font-weight: 600; font-size: 16px; }
 
 /* two columns */
-.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 560px); gap: 16px; align-items: start; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 620px); gap: 16px; align-items: start; }
 @media (max-width: 1100px) { .cols { grid-template-columns: minmax(0, 1fr); } .pk { position: static !important; } }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; min-width: 0; box-shadow: var(--shadow-sm); overflow: hidden; }
 .panel-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
-.panel-h h2 { font-size: 15px; font-weight: 700; }
+.panel-h h2 { font-size: 16px; font-weight: 700; }
 .panel-h .hint { color: var(--ink-2); font-size: 12px; }
 .tbl-wrap { overflow-x: auto; max-height: calc(100vh - 230px); overflow-y: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-thead th { position: sticky; top: 0; background: var(--surface-2); color: var(--ink-2); font-weight: 500; font-size: 12px; text-align: right; z-index: 1; cursor: pointer; user-select: none; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+thead th { position: sticky; top: 0; background: var(--surface-2); color: var(--ink-2); font-weight: 600; font-size: 12px; text-align: right; z-index: 2; cursor: pointer; user-select: none; border-bottom: 2px solid var(--line-2); }
+thead th:hover { color: var(--ink); }
+tbody tr { background: var(--surface); }
+/* 代號、名稱欄固定在左側，橫向捲動時仍看得到是哪一檔 */
+#listWrap .c1, #listWrap .c2 { position: sticky; background: inherit; z-index: 1; }
+#listWrap .c1 { left: 0; min-width: 62px; }
+#listWrap .c2 { left: 62px; box-shadow: 1px 0 0 var(--line); }
+#listWrap thead .c1, #listWrap thead .c2 { z-index: 3; background: var(--surface-2); }
 thead th.l { text-align: left; }
 thead th[aria-sort] { color: var(--accent); }
 thead th[aria-sort="ascending"]::after { content: " ▲"; font-size: 9px; }
 thead th[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
 tbody tr:hover { background: var(--surface-2); }
 tbody tr.sel { background: var(--accent-soft); }
+tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 td.l { text-align: left; }
 .code { color: var(--ink-2); font-size: 12px; }
-.name { font-family: var(--font-tc); font-weight: 500; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline dotted; text-underline-offset: 3px; }
-.add { border: 1px solid var(--line-2); background: var(--surface); border-radius: 6px; padding: 2px 8px; font-size: 12px; color: var(--ink-2); }
+.name { font-family: var(--font-tc); font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0; }
+.name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.add { border: 1px solid var(--line-2); background: var(--surface); border-radius: 999px; padding: 3px 12px; font-size: 12px; color: var(--ink-2); min-height: 26px; transition: background .15s; }
+.add:hover { border-color: var(--accent); color: var(--accent); }
+.add[aria-pressed="true"]:hover { color: #fff; opacity: .9; }
 .add[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.px { font-weight: 600; font-size: 14px; }
+.pill { display: inline-block; min-width: 64px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+.pill.up { background: var(--up-soft); }
+.pill.down { background: var(--down-soft); }
 .empty { padding: 28px 16px; color: var(--ink-2); text-align: center; }
 
 /* PK board */
 .pk { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
 .pk .tbl-wrap { max-height: none; }
 .pk table { font-size: 12.5px; }
-.pk th, .pk td { padding: 5px 7px; }
+.pk th, .pk td { padding: 6px 8px; }
+.pk tbody tr:nth-child(even):not(.band) { background: var(--surface-2); }
 .pk thead th { position: static; cursor: default; text-align: right; }
 .pk thead th.l { text-align: left; }
 .pk thead th .pkname { display: block; font-family: var(--font-tc); font-weight: 700; color: var(--ink); font-size: 13px; }
@@ -146,13 +174,13 @@ td.l { text-align: left; }
 .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 6px; z-index: 30; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); }
 .note { color: var(--ink-3); font-size: 12px; margin-top: 18px; line-height: 1.6; }
 @media (prefers-reduced-motion: no-preference) { .drawer { animation: slide .18s ease-out; } @keyframes slide { from { transform: translateX(24px); opacity: 0; } } }
-@media (max-width: 640px) { .head h1 { font-size: 20px; } th, td { padding: 6px 7px; } input[type="search"] { width: 130px; } }
+@media (max-width: 640px) { .toggle { padding: 2px 8px; font-size: 13px; gap: 4px; } .toggle input[type="number"] { width: 60px; } .head h1 { font-size: 22px; } th, td { padding: 6px 7px; } input[type="search"] { width: 130px; } }
 </style>
 
 <div class="wrap">
   <header class="head">
     <div>
-      <h1>個股財務PK</h1>
+      <h1><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="10" width="4" height="8" rx="1"/><rect x="8" y="4" width="4" height="14" rx="1"/><rect x="14" y="7" width="4" height="11" rx="1"/></svg></span>個股財務PK</h1>
       <div class="sub">依產業篩選上市櫃個股，比較月營收月增、年增與季報獲利能力</div>
     </div>
     <div class="chips" id="chips"><span class="chip">載入資料中…</span></div>
@@ -168,9 +196,9 @@ td.l { text-align: left; }
     </div>
     <div class="ctl"><label for="industry">產業別</label><select id="industry"></select></div>
     <div class="ctl"><label for="q">搜尋</label><input type="search" id="q" placeholder="代號或名稱"></div>
-    <div class="filters" id="filters"></div>
     <div class="spacer"></div>
     <div class="count" id="count"></div>
+    <div class="filters" id="filters" role="group" aria-label="數值篩選"></div>
   </section>
 
   <div class="cols">
@@ -219,7 +247,7 @@ td.l { text-align: left; }
     { flag: 'fEps', inp: 'epsMin', key: 'eps', label: 'EPS ≥', unit: '元', on: false, val: 0, scale: 1, step: 0.5, min: -100 },
     { flag: 'fEpsYoy', inp: 'epsYoyMin', key: 'epsYoy', label: 'EPS年增 ≥', unit: '%', on: false, val: 0, scale: 100, step: 1, min: -100 },
   ];
-  let state = { market: LS.get('market', '上市'), industry: LS.get('industry', '電腦及週邊設備業'), q: '', sort: LS.get('sort', { k: 'rev', dir: 'desc' }) };
+  let state = { market: LS.get('market', '上市'), industry: LS.get('industry', '電腦及週邊設備業'), q: '', sort: LS.get('sort', { k: 'rev', dir: 'desc' }), more: LS.get('more', false) };
   for (const f of FILTERS) { state[f.flag] = LS.get(f.flag, f.on); state[f.inp] = LS.get(f.inp, f.val); }
   let pk = LS.get('pk', ['2362', '2353', '2376', '2377', '2382', '2324']);
 
@@ -282,10 +310,12 @@ td.l { text-align: left; }
     $('#listTitle').textContent = state.q.trim() ? `搜尋「${state.q.trim()}」` : `${state.industry}（${state.market}）`;
     if (!list.length) { $('#listWrap').innerHTML = '<div class="empty">沒有符合條件的個股。放寬門檻或取消部分篩選條件試試。</div>'; return; }
     const cols = COLS.filter(c => hasPrice() || (c.k !== 'px' && c.k !== 'pxPct'));
-    const th = cols.map(c => `<th class="${c.l ? 'l' : ''}" data-k="${c.k}" ${state.sort.k === c.k ? `aria-sort="${state.sort.dir === 'asc' ? 'ascending' : 'descending'}"` : ''}>${c.t}</th>`).join('');
+    const th = cols.map(c => `<th class="${c.l ? 'l' : ''} ${c.k === 'code' ? 'c1' : c.k === 'name' ? 'c2' : ''}" data-k="${c.k}" ${state.sort.k === c.k ? `aria-sort="${state.sort.dir === 'asc' ? 'ascending' : 'descending'}"` : ''}>${c.t}</th>`).join('');
     const tr = list.map(r => `<tr data-code="${r.code}" class="${pk.includes(r.code) ? 'sel' : ''}">` + cols.map(c => {
-      if (c.k === 'code') return `<td class="l code">${r.code}</td>`;
-      if (c.k === 'name') return `<td class="l"><button type="button" class="name" data-detail="${r.code}">${esc(r.name)}</button></td>`;
+      if (c.k === 'code') return `<td class="l code c1">${r.code}</td>`;
+      if (c.k === 'px') return `<td class="num px ${cls(r.pxPct)}">${c.f(r.px)}</td>`;
+      if (c.k === 'pxPct') return `<td class="num">${r.pxPct == null ? '<span class="na">—</span>' : `<span class="pill ${cls(r.pxPct)}">${(r.pxPct > 0 ? '+' : '') + fmtP(r.pxPct)}</span>`}</td>`;
+      if (c.k === 'name') return `<td class="l c2"><button type="button" class="name" data-detail="${r.code}">${esc(r.name)}</button></td>`;
       if (c.k === 'pk') return `<td class="num"><button type="button" class="add" data-pk="${r.code}" aria-pressed="${pk.includes(r.code)}">${pk.includes(r.code) ? '已加入' : 'PK'}</button></td>`;
       const v = r[c.k]; return `<td class="num ${c.c ? cls(v) : (v == null ? 'na' : '')}">${c.f(v)}</td>`;
     }).join('') + '</tr>').join('');
@@ -398,16 +428,30 @@ td.l { text-align: left; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('.drawer')) closeDetail(); });
   $('#industry').addEventListener('change', e => { state.industry = e.target.value; LS.set('industry', state.industry); renderList(); });
   $('#q').addEventListener('input', e => { state.q = e.target.value; renderList(); });
+  function toggleHTML(f) {
+    return `<label class="toggle" data-on="${state[f.flag]}"><input type="checkbox" id="${f.flag}" ${state[f.flag] ? 'checked' : ''}> ${f.label} <input type="number" id="${f.inp}" value="${state[f.inp]}" min="${f.min}" step="${f.step}" aria-label="${f.label.replace(/ [≥≤±]+$/, '')}門檻"> <span class="unit">${f.unit}</span></label>`;
+  }
+  const MAIN = 4;     // 前幾個條件常駐顯示，其餘收進「更多條件」
+  function updateMore() {
+    const n = FILTERS.slice(MAIN).filter(f => state[f.flag]).length;
+    const btn = $('#moreBtn'); if (!btn) return;
+    btn.innerHTML = `${state.more ? '收合條件 ▴' : '更多條件 ▾'}${n ? `<span class="badge">${n}</span>` : ''}`;
+    btn.setAttribute('aria-expanded', !!state.more); $('#extra').hidden = !state.more;
+  }
   function buildFilters() {
-    $('#filters').innerHTML = FILTERS.map(f => `<label class="toggle" data-on="${state[f.flag]}"><input type="checkbox" id="${f.flag}" ${state[f.flag] ? 'checked' : ''}> ${f.label} <input type="number" id="${f.inp}" value="${state[f.inp]}" min="${f.min}" step="${f.step}" aria-label="${f.label.replace(/ [≥≤±]+$/, '')}門檻"> <span class="unit">${f.unit}</span></label>`).join('');
+    if (FILTERS.slice(MAIN).some(f => state[f.flag])) state.more = true;
+    $('#filters').innerHTML = `<span class="lbl">篩選條件</span>${FILTERS.slice(0, MAIN).map(toggleHTML).join('')}<button type="button" class="more-btn" id="moreBtn" aria-controls="extra"></button><span class="extra" id="extra" hidden>${FILTERS.slice(MAIN).map(toggleHTML).join('')}</span><button type="button" class="reset" id="resetF">恢復預設</button>`;
+    updateMore();
+    $('#moreBtn').addEventListener('click', () => { state.more = !state.more; LS.set('more', state.more); updateMore(); });
+    $('#resetF').addEventListener('click', () => { for (const f of FILTERS) { state[f.flag] = f.on; state[f.inp] = f.val; LS.set(f.flag, f.on); LS.set(f.inp, f.val); } state.more = false; buildFilters(); renderList(); });
     for (const f of FILTERS) {
       const cb = $('#' + f.flag), inp = $('#' + f.inp), box = cb.closest('.toggle');
-      cb.addEventListener('change', e => { state[f.flag] = e.target.checked; box.dataset.on = e.target.checked; LS.set(f.flag, state[f.flag]); renderList(); });
+      cb.addEventListener('change', e => { state[f.flag] = e.target.checked; box.dataset.on = e.target.checked; LS.set(f.flag, state[f.flag]); updateMore(); renderList(); });
       // 門檻輸入框：改數字時自動勾選對應的條件
       inp.addEventListener('input', e => {
         const v = parseFloat(e.target.value); if (!isFinite(v)) return;
         state[f.inp] = v; LS.set(f.inp, v);
-        if (!state[f.flag]) { state[f.flag] = true; cb.checked = true; box.dataset.on = true; LS.set(f.flag, true); }
+        if (!state[f.flag]) { state[f.flag] = true; cb.checked = true; box.dataset.on = true; LS.set(f.flag, true); updateMore(); }
         renderList();
       });
       inp.addEventListener('click', e => e.preventDefault());
