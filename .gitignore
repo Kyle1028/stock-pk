@@ -1,3 +1,5 @@
 node_modules/
 .DS_Store
 update.log
+worker/node_modules
+worker/.wrangler

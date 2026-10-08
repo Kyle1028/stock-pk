@@ -202,6 +202,9 @@ td.l { text-align: left; }
   const pct = (a, b) => (a == null || b == null || b === 0) ? null : (a - b) / Math.abs(b);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+  // 即時股價中繼（Cloudflare Worker，見 worker/）。留空則不顯示股價欄位。
+  const PRICE_API = 'https://stock-pk-price.kyle10281202.workers.dev/';
+  const quotes = {};       // code -> { p, y, t, live }
   let D = null;            // snapshot
   let rows = [];           // computed metrics per stock
   // 數值篩選條件：on = 是否啟用、val = 門檻（顯示單位）；scale 為顯示值換算成資料值的除數；abs 取絕對值、max 為「以下」
@@ -257,11 +260,12 @@ td.l { text-align: left; }
       }));
   }
   const COLS = [
-    { k: 'code', t: '代號', l: true }, { k: 'name', t: '名稱', l: true }, { k: 'rev', t: '月營收(百萬)', f: v => fmtN(v / 1000) }, { k: 'vol', t: '日均量(張)', f: v => fmtN(v) },
+    { k: 'code', t: '代號', l: true }, { k: 'name', t: '名稱', l: true }, { k: 'px', t: '股價', f: v => fmtN(v, 2), c: true }, { k: 'pxPct', t: '漲跌幅', f: fmtP, c: true }, { k: 'rev', t: '月營收(百萬)', f: v => fmtN(v / 1000) }, { k: 'vol', t: '日均量(張)', f: v => fmtN(v) },
     { k: 'mom', t: '月增率', f: fmtP, c: true }, { k: 'yoy', t: '年增率', f: fmtP, c: true }, { k: 'cumYoy', t: '累計年增', f: fmtP, c: true },
     { k: 'gm', t: '毛利率', f: fmtP }, { k: 'om', t: '營益率', f: fmtP, c: true }, { k: 'nm', t: '淨利率', f: fmtP, c: true }, { k: 'nonop', t: '業外/營收', f: fmtP, c: true },
     { k: 'eps', t: 'EPS(元)', f: v => fmtN(v, 2), c: true }, { k: 'epsYoy', t: 'EPS年增', f: fmtP, c: true }, { k: 'pk', t: 'PK' }
   ];
+  const hasPrice = () => !!PRICE_API;
   function sortRows(list) {
     const { k, dir } = state.sort, m = dir === 'asc' ? 1 : -1;
     return list.sort((a, b) => {
@@ -277,8 +281,9 @@ td.l { text-align: left; }
     $('#count').innerHTML = `符合 <b>${list.length}</b> / ${total} 檔`;
     $('#listTitle').textContent = state.q.trim() ? `搜尋「${state.q.trim()}」` : `${state.industry}（${state.market}）`;
     if (!list.length) { $('#listWrap').innerHTML = '<div class="empty">沒有符合條件的個股。放寬門檻或取消部分篩選條件試試。</div>'; return; }
-    const th = COLS.map(c => `<th class="${c.l ? 'l' : ''}" data-k="${c.k}" ${state.sort.k === c.k ? `aria-sort="${state.sort.dir === 'asc' ? 'ascending' : 'descending'}"` : ''}>${c.t}</th>`).join('');
-    const tr = list.map(r => `<tr data-code="${r.code}" class="${pk.includes(r.code) ? 'sel' : ''}">` + COLS.map(c => {
+    const cols = COLS.filter(c => hasPrice() || (c.k !== 'px' && c.k !== 'pxPct'));
+    const th = cols.map(c => `<th class="${c.l ? 'l' : ''}" data-k="${c.k}" ${state.sort.k === c.k ? `aria-sort="${state.sort.dir === 'asc' ? 'ascending' : 'descending'}"` : ''}>${c.t}</th>`).join('');
+    const tr = list.map(r => `<tr data-code="${r.code}" class="${pk.includes(r.code) ? 'sel' : ''}">` + cols.map(c => {
       if (c.k === 'code') return `<td class="l code">${r.code}</td>`;
       if (c.k === 'name') return `<td class="l"><button type="button" class="name" data-detail="${r.code}">${esc(r.name)}</button></td>`;
       if (c.k === 'pk') return `<td class="num"><button type="button" class="add" data-pk="${r.code}" aria-pressed="${pk.includes(r.code)}">${pk.includes(r.code) ? '已加入' : 'PK'}</button></td>`;
@@ -289,6 +294,7 @@ td.l { text-align: left; }
 
   // ---- PK board ----
   const PKROWS = [
+    ...(PRICE_API ? [{ band: `股價` }, { t: '股價(元)', k: 'px', f: v => fmtN(v, 2), c: true }, { t: '漲跌幅', k: 'pxPct', f: fmtP, c: true }] : []),
     { band: `月資料` },
     { t: '月營收(百萬元)', k: 'rev', f: v => fmtN(v / 1000), best: 'max' },
     { t: '日均成交量(張)', k: 'vol', f: v => fmtN(v), best: 'max' },
@@ -421,12 +427,45 @@ td.l { text-align: left; }
   }
   const volSpan = () => D.asof.vol ? `近 ${D.asof.vol.days} 個交易日（${D.asof.vol.from.slice(4, 6)}/${D.asof.vol.from.slice(6)}–${D.asof.vol.to.slice(4, 6)}/${D.asof.vol.to.slice(6)}）平均` : '—';
 
+  // ---- 即時股價 ----
+  function applyQuotes() {
+    for (const r of rows) {
+      const q = quotes[r.code];
+      r.px = q ? q.p : null; r.pxPct = q && q.y ? (q.p - q.y) / q.y : null;
+    }
+  }
+  function marketOpen() {      // 台灣時間週一至週五 09:00–13:35
+    const t = new Date(Date.now() + 8 * 3600e3), d = t.getUTCDay(), m = t.getUTCHours() * 60 + t.getUTCMinutes();
+    return d >= 1 && d <= 5 && m >= 540 && m <= 815;
+  }
+  async function pollPrices() {
+    if (!PRICE_API || document.hidden) return;
+    const codes = [...new Set([...filtered().slice(0, 100).map(r => r.code), ...pk])].slice(0, 120);
+    if (!codes.length) return;
+    try {
+      const r = await fetch(`${PRICE_API}?codes=${codes.join(',')}`); if (!r.ok) throw 0;
+      Object.assign(quotes, await r.json());
+      applyQuotes();
+      const top = $('#listWrap').scrollTop; renderList(); $('#listWrap').scrollTop = top; renderPK();
+      const any = Object.values(quotes)[0];
+      $('#priceChip').innerHTML = any ? `股價 <b>${any.t || '—'}</b>${marketOpen() ? ' · 即時' : ' · 收盤'}` : '';
+    } catch { $('#priceChip').textContent = '股價暫時無法取得'; }
+  }
+  function startPrices() {
+    if (!PRICE_API) return;
+    $('#chips').insertAdjacentHTML('beforeend', '<span class="chip" id="priceChip">股價載入中…</span>');
+    pollPrices();
+    setInterval(() => { if (marketOpen()) pollPrices(); }, 10000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) pollPrices(); });
+    for (const id of ['market', 'industry', 'q']) $('#' + id).addEventListener(id === 'market' ? 'click' : id === 'q' ? 'input' : 'change', () => setTimeout(pollPrices, 0));
+  }
+
   fetch('data/snapshot.json').then(r => r.json()).then(d => {
     D = d; compute();
     const L = D.months.length - 1, Q = D.quarters.length - 1, n = rows.length;
     $('#chips').innerHTML = `<span class="chip">月營收 <b>${D.months[L]}</b></span><span class="chip">季報 <b>${D.quarters[Q]}</b></span>${D.asof.vol ? `<span class="chip">日均量 <b>近${D.asof.vol.days}日</b></span>` : ''}<span class="chip">涵蓋 <b>${n.toLocaleString()}</b> 檔上市櫃</span><span class="chip">資料擷取 <b>${D.asof.fetched}</b></span>`;
     $('#note').innerHTML = `資料來源：公開資訊觀測站（月營收彙總表、綜合損益表彙總）、臺灣證券交易所與櫃買中心 OpenAPI。日均成交量為近 20 個交易日成交股數的平均（以張計，1 張 = 1,000 股），取自證交所與櫃買中心每日收盤行情。月營收單位為新台幣，表內換算為百萬元；季報比率以 ${D.quarters[Q]} 單季計算（由累計數拆算），EPS 年增率以去年同季單季 EPS 為基準。金融保險等非一般業損益表格式者不計算毛利率。紅色為正、綠色為負，依台股慣例。`;
-    buildFilters(); applyStateToControls(); fillIndustries(); renderList(); renderPK();
+    buildFilters(); applyStateToControls(); fillIndustries(); renderList(); renderPK(); startPrices();
   }).catch(() => { $('#listWrap').innerHTML = '<div class="empty">資料載入失敗，請重新整理頁面。</div>'; $('#chips').innerHTML = ''; });
 })();
 </script>
