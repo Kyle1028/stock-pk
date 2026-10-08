@@ -4,6 +4,7 @@ rem 由 Windows 工作排程器每天執行；也可以直接雙擊手動執行�
 chcp 65001 >nul
 cd /d "%~dp0.."
 set GIT="C:\Program Files\Git\cmd\git.exe"
+if not exist %GIT% set GIT="%LOCALAPPDATA%\Programs\Git\cmd\git.exe"
 set NODE="C:\Program Files\nodejs\node.exe"
 set LOG=update.log
 
